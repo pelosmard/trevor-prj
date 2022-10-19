@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // Load test data
-// import localData from "./data/records.json";
+import localData from "./data/records.json";
 
 /**
  * Calculate the average balance of the records.
@@ -14,12 +14,9 @@ import axios from "axios";
  * @returns number
  */
 export function calculateAvgBalance(localData: Array<SampleDateRecord>): number {
-  let total = 0;
-
-  for (let i = 0; i < localData.length; i++) {
-    const value = Number((localData[i].balance as string).replace(/[^0-9.-]+/g, ""));
-    total += value;
-  }
+  const total: number = localData.reduce((sum, item) => {
+    return sum + Number((item.balance as string).replace(/[^0-9.-]+/g, ""));
+  }, 0);
 
   return total / localData.length;
 }
@@ -285,12 +282,12 @@ export function doALotOfStuff(flex: any, manager: any): void {
 }
 
 /* eslint-disable */
-// (async ()=>{
-//   console.log(
-//     calculateAvgBalance(localData),
-//     findTagCounts(localData),
-//     await returnSiteTitles(),
-//     reformatData(localData),
-//     buildAList(localData)
-//   );
-// })();
+(async () => {
+  console.log(
+    calculateAvgBalance(localData),
+    findTagCounts(localData),
+    // await returnSiteTitles(),
+    // reformatData(localData),
+    // buildAList(localData)
+  );
+})();
