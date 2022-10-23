@@ -21,6 +21,9 @@ module.exports = {
         maxEOF: 1
       }
     ],
+    // note you must disable the base rule as it can report incorrect errors
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["error"],
     "object-property-newline": ["warn", { allowAllPropertiesOnSameLine: true }],
     "object-curly-spacing": ["warn", "always"],
     "no-mixed-operators": 0,
@@ -39,7 +42,7 @@ module.exports = {
     "brace-style": ["warn", "1tbs"],
     "key-spacing": ["warn", { beforeColon: false }],
     "@typescript-eslint/no-explicit-any": 0,
-    "@typescript-eslint/no-unused-vars": ["error"],
+    // "@typescript-eslint/no-unused-vars": ["error"],
     "space-before-blocks": ["warn"],
     "prettier/prettier": 1
   },

@@ -30,23 +30,13 @@ export function calculateAvgBalance(localData: Array<SampleDateRecord>): number 
  * @returns array of objects
  */
 export function findTagCounts(localData: Array<SampleDateRecord>): Array<TagCounts> {
-  const tagCounts: Array<TagCounts> = [];
+  const tagCounts: { tag: string; count: number }[] = [];
 
-  for (let i = 0; i < localData.length; i++) {
-    const tags = localData[i].tags;
-
-    for (let j = 0; j < tags.length; j++) {
-      const tag = tags[j];
-
-      for (let k = 0; k < tagCounts.length; k++) {
-        if (tagCounts[k].tag === tag) {
-          tagCounts[k].count++;
-        } else {
-          tagCounts.push({ tag, count: 1 });
-        }
-      }
-    }
-  }
+  localData.forEach((item) => {
+    item.tags.forEach((item2, index2) => {
+      tagCounts.push({ tag: item2, count: index2 });
+    });
+  });
 
   return tagCounts;
 }
@@ -61,19 +51,21 @@ export function findTagCounts(localData: Array<SampleDateRecord>): Array<TagCoun
  *
  * @returns array of strings
  */
-export async function returnSiteTitles() {
-  const urls = ["https://www.thetrevorproject.org/", "https://www.startrek.com/", "https://bwfbadminton.com/"];
+export async function returnSiteTitles(): Promise<string[]> {
+  const titles: string[] = [];
 
-  const titles = [];
+  const URL1 = "https://www.startrek.com/";
+  const URL2 = "https://bwfbadminton.com/";
 
-  for (const url of urls) {
-    const response = await axios.get(url);
+  const promise1 = axios.get(URL1);
+  const promise2 = axios.get(URL2);
 
-    if (response.status === 200) {
-      const match = response.data.match(/<title>(.*?)<\/title>/);
-      titles.push(match[1]);
-    }
-  }
+  const values = await Promise.all([promise1, promise2]);
+  let match;
+  match = values[0].data.match(/<title>(.*?)<\/title>/);
+  titles.push(match[1]);
+  match = values[1].data.match(/<title>(.*?)<\/title>/);
+  titles.push(match[1]);
 
   return titles;
 }
@@ -90,40 +82,79 @@ export async function returnSiteTitles() {
  * @param localData array of objects
  * @returns array of objects
  */
-export function reformatData(localData: Array<SampleDateRecord>): Array<SampleDateRecord> {
-  const reformattedData: Array<SampleDateRecord> = [];
+export function reformatData(localData: Array<SampleDateRecord>): Array<NewDateRecord> {
+  const checkBalance = (quantity: string): number => {
+    const quant: string = quantity.replace(/[^\d.]/g, "");
+    return parseFloat(quant);
+  };
 
-  for (let i = 0; i < localData.length; i++) {
-    const record = localData[i];
+  const isValidUrl = (urlString: string) => {
+    const urlPattern = new RegExp(
+      "^(https?:\\/\\/)?" + // validate protocol
+        "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // validate domain name
+        "((\\d{1,3}\\.){3}\\d{1,3}))" + // validate OR ip (v4) address
+        "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // validate port and path
+        "(\\?[;&a-z\\d%_.~+=-]*)?" + // validate query string
+        "(\\#[-a-z\\d_]*)?$",
+      "i"
+    ); // validate fragment locator
+    return !!urlPattern.test(urlString);
+  };
 
-    reformattedData.push({
-      _id: record._id,
-      index: record.index,
-      guid: record.guid,
-      isActive: record.isActive,
-      // Convert this from a string to a float/number
-      balance: record.balance,
-      // Validate this is a valid URL. Insert null if invalid.
-      picture: record.picture,
-      age: record.age,
-      eyeColor: record.eyeColor,
-      name: record.name,
-      gender: record.gender,
-      company: record.company,
-      // Validate the email format. Insert null if invalid.
-      email: record.email,
-      // Reformat the phone to be period-separated so 1.555.555.5555.
-      phone: record.phone,
-      address: record.address,
-      about: record.about,
-      // Reformat the date to be ISO 8601 in UTC time (i.e. 2021-06-17T02:28:41.000Z).
-      registered: record.registered,
-      latitude: record.latitude,
-      longitude: record.longitude,
-      tags: record.tags,
-      friends: record.friends
-    });
-  }
+  const emailregexpre = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+
+  const isValidPhone = (value: string) => {
+    if (!value) return null;
+    // clean the input for any non-digit values.
+    const phoneNumber = value.replace(/[^\d]/g, "");
+    return (
+      phoneNumber.substring(0, 1) +
+      "." +
+      phoneNumber.substring(1, 4) +
+      "." +
+      phoneNumber.substring(4, 7) +
+      "." +
+      phoneNumber.substring(7)
+    );
+  };
+
+  const parseISOLocal = (nonIso: any) => {
+    const b = nonIso.split(/\D/);
+    return new Date(b[0], b[1] - 1, b[2], b[3] || 0, b[4] || 0, b[5] || 0);
+  };
+
+  const reformattedData = localData.map((item) => {
+    const container: NewDateRecord = {} as NewDateRecord;
+    container._id = item._id;
+    container.index = item.index;
+    container.guid = item.guid;
+    container.isActive = item.isActive;
+
+    container.balance = checkBalance(item.balance);
+
+    container.picture = isValidUrl(item.picture) ? item.picture : null;
+
+    container.age = item.age;
+    container.eyeColor = item.eyeColor;
+    container.name = item.name;
+    container.gender = item.gender;
+    container.company = item.company;
+
+    container.email = emailregexpre.test(item.email) ? item.email : null;
+
+    container.phone = isValidPhone(item.phone);
+
+    container.address = item.address;
+    container.about = item.about;
+
+    container.registered = parseISOLocal(item.registered).toISOString();
+    container.latitude = item.latitude;
+    container.longitude = item.longitude;
+    container.tags = item.tags;
+    container.friends = item.friends;
+
+    return container;
+  });
 
   return reformattedData;
 }
@@ -137,15 +168,12 @@ export function reformatData(localData: Array<SampleDateRecord>): Array<SampleDa
  * @returns string
  */
 export function buildAList(localData: Array<SampleDateRecord>): string {
-  let list = "<ul>";
-
-  for (let i = 0; i < localData.length; i++) {
-    const record = localData[i];
-    list += `<li>${record.name}</li>`;
-  }
+  let list = "<ul>" + "\r\n";
+  localData.map((item) => {
+    list += `<li>${item.name}</li>` + "\r\n";
+  });
 
   list += "</ul>";
-
   return list;
 }
 
@@ -166,20 +194,10 @@ export function filterAgeGreaterThan(
   count = 0
 ): Array<SampleDateRecord> {
   const filteredData: Array<SampleDateRecord> = [];
-
-  for (let i = 0; i < localData.length; i++) {
-    const record = localData[i];
-
-    if (record.isActive && record.age > age) {
-      if (count) {
-        if (filteredData.length < count) {
-          filteredData.push(record);
-        }
-      } else {
-        filteredData.push(record);
-      }
-    }
-  }
+  let counter = 0;
+  localData.filter((agefilter) => {
+    return agefilter.isActive && agefilter.age > age && counter++ < count ? filteredData.push(agefilter) : false;
+  });
 
   return filteredData;
 }
@@ -206,6 +224,15 @@ export function doALotOfStuff(flex: any, manager: any): void {
     console.log(value);
   }
 
+  const invokeFlexAct = () => {
+    displayContainer("none");
+
+    flex.Actions.invokeAction(
+      "HistoryPush",
+      "/agent-desktop/" + Array.from(manager.workerClient.reservations.keys())[0]
+    );
+  };
+
   manager.insightsClient
     .liveQuery("tr-task", `data.worker_sid == "${currentWorker}"`)
     .then((args: Record<string, any>) => {
@@ -225,22 +252,22 @@ export function doALotOfStuff(flex: any, manager: any): void {
       });
 
       if (assignedTask.size === 1 && otherTask.size === 0) {
-        displayContainer("none");
-        flex.Actions.invokeAction(
-          "HistoryPush",
-          "/agent-desktop/" + Array.from(manager.workerClient.reservations.keys())[0]
-        );
+        invokeFlexAct();
+        // flex.Actions.invokeAction(
+        //   "HistoryPush",
+        //   "/agent-desktop/" + Array.from(manager.workerClient.reservations.keys())[0]
+        // );
       } else {
         displayContainer("block");
       }
 
       manager.events.addListener("selectedViewChanged", (viewName: string) => {
         if (viewName === "agent-desktop" && assignedTask.size === 1 && otherTask.size === 0) {
-          displayContainer("none");
-          flex.Actions.invokeAction(
-            "HistoryPush",
-            "/agent-desktop/" + Array.from(manager.workerClient.reservations.keys())[0]
-          );
+          invokeFlexAct();
+          // flex.Actions.invokeAction(
+          //   "HistoryPush",
+          //   "/agent-desktop/" + Array.from(manager.workerClient.reservations.keys())[0]
+          // );
         }
       });
 
@@ -255,11 +282,11 @@ export function doALotOfStuff(flex: any, manager: any): void {
         }
 
         if (assignedTask.size === 1 && otherTask.size === 0 && window.location.href.includes("agent-desktop")) {
-          displayContainer("none");
-          flex.Actions.invokeAction(
-            "HistoryPush",
-            "/agent-desktop/" + Array.from(manager.workerClient.reservations.keys())[0]
-          );
+          invokeFlexAct();
+          // flex.Actions.invokeAction(
+          //   "HistoryPush",
+          //   "/agent-desktop/" + Array.from(manager.workerClient.reservations.keys())[0]
+          // );
         } else {
           displayContainer("block");
         }
@@ -269,11 +296,11 @@ export function doALotOfStuff(flex: any, manager: any): void {
         otherTask.delete(args.key);
         assignedTask.delete(args.key);
         if (assignedTask.size === 1 && otherTask.size === 0) {
-          displayContainer("none");
-          flex.Actions.invokeAction(
-            "HistoryPush",
-            "/agent-desktop/" + Array.from(manager.workerClient.reservations.keys())[0]
-          );
+          invokeFlexAct();
+          // flex.Actions.invokeAction(
+          //   "HistoryPush",
+          //   "/agent-desktop/" + Array.from(manager.workerClient.reservations.keys())[0]
+          // );
         } else {
           displayContainer("block");
         }
@@ -286,8 +313,9 @@ export function doALotOfStuff(flex: any, manager: any): void {
   console.log(
     calculateAvgBalance(localData),
     findTagCounts(localData),
-    // await returnSiteTitles(),
-    // reformatData(localData),
-    // buildAList(localData)
+    await returnSiteTitles(),
+    reformatData(localData),
+    buildAList(localData),
+    filterAgeGreaterThan(localData, 39, 10)
   );
 })();
