@@ -32,12 +32,16 @@ export function calculateAvgBalance(localData: Array<SampleDateRecord>): number 
 export function findTagCounts(localData: Array<SampleDateRecord>): Array<TagCounts> {
   const tagCounts: { tag: string; count: number }[] = [];
 
-  localData.forEach((item) => {
-    item.tags.forEach((item2, index2) => {
-      tagCounts.push({ tag: item2, count: index2 });
+  localData.forEach((record) => {
+    record.tags.forEach((tag) => {
+      const foundTag = tagCounts.find((item) => item.tag === tag);
+      if (foundTag) {
+        foundTag.count++;
+      } else {
+        tagCounts.push({ tag: tag, count: 1 });
+      }
     });
   });
-
   return tagCounts;
 }
 
@@ -118,9 +122,29 @@ export function reformatData(localData: Array<SampleDateRecord>): Array<NewDateR
     );
   };
 
-  const parseISOLocal = (nonIso: any) => {
-    const b = nonIso.split(/\D/);
-    return new Date(b[0], b[1] - 1, b[2], b[3] || 0, b[4] || 0, b[5] || 0);
+  const hasDST = (date = new Date()) => {
+    const january = new Date(date.getFullYear(), 0, 1).getTimezoneOffset();
+    const july = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
+
+    return Math.max(january, july) !== date.getTimezoneOffset();
+  };
+
+  const updateDST = (date: Date) => {
+    const numberOfMlSeconds = date.getTime();
+    let addMlSeconds = 0;
+    if (hasDST(date)) {
+      addMlSeconds = 720 * 60 * 1000;
+    } else {
+      addMlSeconds = 780 * 60 * 1000;
+    }
+    return new Date(numberOfMlSeconds - addMlSeconds);
+  };
+
+  const convertUTCToISO = (dateString: string) => {
+    //"2017-11-09T02:10:08 +07:00"    string.substring(start, end)
+    const newDateString = dateString.substring(0, 19);
+    const date = new Date(newDateString);
+    return updateDST(date);
   };
 
   const reformattedData = localData.map((item) => {
@@ -147,7 +171,8 @@ export function reformatData(localData: Array<SampleDateRecord>): Array<NewDateR
     container.address = item.address;
     container.about = item.about;
 
-    container.registered = parseISOLocal(item.registered).toISOString();
+    //container.registered = parseISOLocal(item.registered).toISOString();
+    container.registered = convertUTCToISO(item.registered).toISOString();
     container.latitude = item.latitude;
     container.longitude = item.longitude;
     container.tags = item.tags;
@@ -168,9 +193,9 @@ export function reformatData(localData: Array<SampleDateRecord>): Array<NewDateR
  * @returns string
  */
 export function buildAList(localData: Array<SampleDateRecord>): string {
-  let list = "<ul>" + "\r\n";
+  let list = "<ul>";
   localData.map((item) => {
-    list += `<li>${item.name}</li>` + "\r\n";
+    list += `<li>${item.name}</li>`;
   });
 
   list += "</ul>";
@@ -193,12 +218,9 @@ export function filterAgeGreaterThan(
   age: number,
   count = 0
 ): Array<SampleDateRecord> {
-  const filteredData: Array<SampleDateRecord> = [];
-  let counter = 0;
-  localData.filter((agefilter) => {
-    return agefilter.isActive && agefilter.age > age && counter++ < count ? filteredData.push(agefilter) : false;
+  const filteredData: Array<SampleDateRecord> = localData.filter((record, index) => {
+    return record.isActive && record.age > age && (count ? index < count : true);
   });
-
   return filteredData;
 }
 
@@ -315,7 +337,6 @@ export function doALotOfStuff(flex: any, manager: any): void {
     findTagCounts(localData),
     await returnSiteTitles(),
     reformatData(localData),
-    buildAList(localData),
-    filterAgeGreaterThan(localData, 39, 10)
+    buildAList(localData)
   );
 })();

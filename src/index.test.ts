@@ -27,11 +27,10 @@ describe("Test returnSiteTitles", () => {
   it("should return the proper site titles", async () => {
     const titles = await testFunctions.returnSiteTitles();
 
-    expect(titles.length).toBe(3);
+    expect(titles.length).toBe(2);
 
-    expect(titles[0]).toBe("The Trevor Project | For Young LGBTQ Lives");
-    expect(titles[1]).toBe("Star Trek (Official Site)");
-    expect(titles[2]).toBe("BWF Fansite");
+    expect(titles[0]).toBe("Star Trek (Official Site)");
+    expect(titles[1]).toBe("BWF Fansite");
   });
 });
 
